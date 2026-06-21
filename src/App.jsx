@@ -1,42 +1,33 @@
-import { useState } from "react"
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import ParentDashboard from "./ParentDashboard"
-import DriverDashboard from "./DriverDashboard"
-import AdminDashboard from "./AdminDashboard"
+import Login from "./pages/Login";
+import ParentDashboard from "./pages/ParentDashboard";
+import DriverDashboard from "./pages/DriverDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function App() {
-  const [page, setPage] = useState("parent")
-
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#07101f",
-        color: "white",
-        padding: "20px",
-      }}
-    >
-      <h1>CampusConnect Transit Pro</h1>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
 
-      <div style={{ marginBottom: "20px" }}>
-        <button onClick={() => setPage("parent")}>
-          Parent
-        </button>
+        <Route
+          path="/parent"
+          element={<ParentDashboard />}
+        />
 
-        <button onClick={() => setPage("driver")}>
-          Driver
-        </button>
+        <Route
+          path="/driver"
+          element={<DriverDashboard />}
+        />
 
-        <button onClick={() => setPage("admin")}>
-          Admin
-        </button>
-      </div>
-
-      {page === "parent" && <ParentDashboard />}
-      {page === "driver" && <DriverDashboard />}
-      {page === "admin" && <AdminDashboard />}
-    </div>
-  )
+        <Route
+          path="/admin"
+          element={<AdminDashboard />}
+        />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
