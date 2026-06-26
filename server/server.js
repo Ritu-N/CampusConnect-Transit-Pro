@@ -5,10 +5,11 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
 const students = [
-  { id: 1, name: "Rahul Kumar", class: "X-A", bus: "TN09 AB1234", status: "Present" },
-  { id: 2, name: "Priya Sharma", class: "IX-B", bus: "TN09 AB1234", status: "Present" },
-  { id: 3, name: "Arjun", class: "VIII-A", bus: "TN09 AB1234", status: "Absent" },
+  { id: 1, name: "Rahul Kumar", class: "X-A", rollNumber: "12", bus: "TN09 AB1234", status: "Present" },
+  { id: 2, name: "Priya Sharma", class: "IX-B", rollNumber: "27", bus: "TN09 AB1234", status: "Present" },
+  { id: 3, name: "Arjun", class: "VIII-A", rollNumber: "05", bus: "TN09 AB1234", status: "Absent" },
 ];
 
 const drivers = [
@@ -20,15 +21,33 @@ const drivers = [
 const routes = [
   {
     id: 1,
-    name: "Anna Nagar - Campus",
-    stops: ["Anna Nagar", "Koyambedu", "Vadapalani", "Guindy", "Campus"],
+    name: "Anna Nagar - CampusConnect",
+    stops: ["Anna Nagar", "Koyambedu", "Vadapalani", "Guindy", "CampusConnect"],
+    stopLocations: [
+      [13.0838, 80.2719],
+      [13.0850, 80.2735],
+      [13.0862, 80.2750],
+      [13.0875, 80.2768],
+      [13.0893, 80.2785],
+    ],
     assignedBusId: 1,
+    departureTime: "8:00 AM",
+    expectedArrival: "8:55 AM",
   },
   {
     id: 2,
-    name: "Adyar - Campus",
-    stops: ["Adyar", "Tidel Park", "Velachery", "Guindy", "Campus"],
+    name: "Adyar - CampusConnect",
+    stops: ["Adyar", "Tidel Park", "Velachery", "Guindy", "CampusConnect"],
+    stopLocations: [
+      [13.0110, 80.2560],
+      [13.0215, 80.2588],
+      [13.0263, 80.2602],
+      [13.0370, 80.2628],
+      [13.0893, 80.2785],
+    ],
     assignedBusId: 2,
+    departureTime: "8:15 AM",
+    expectedArrival: "9:05 AM",
   },
 ];
 
@@ -66,9 +85,11 @@ const buses = [
 ];
 
 const notifications = [
-  { id: 1, title: "Bus Started", message: "Bus TN09 AB1234 has left Anna Nagar.", time: "8:00 AM" },
-  { id: 2, title: "Reached Koyambedu", message: "Bus TN09 AB1234 has reached Koyambedu.", time: "8:20 AM" },
-  { id: 3, title: "ETA Update", message: "Bus will reach campus in 12 minutes.", time: "8:40 AM" },
+  { id: 1, title: "Bus Started", message: "Bus TN09 AB1234 has left Anna Nagar.", time: "8:00 AM", busNumber: "TN09 AB1234" },
+  { id: 2, title: "Student Boarded Bus", message: "Rahul Kumar boarded the bus at Anna Nagar.", time: "8:10 AM", busNumber: "TN09 AB1234", studentName: "Rahul Kumar" },
+  { id: 3, title: "Bus Reached Stop", message: "Bus reached Koyambedu on schedule.", time: "8:20 AM", busNumber: "TN09 AB1234" },
+  { id: 4, title: "Student Reached School", message: "Rahul Kumar has arrived on campus safely.", time: "8:55 AM", busNumber: "TN09 AB1234", studentName: "Rahul Kumar" },
+  { id: 5, title: "Bus Delayed", message: "Bus TN09 AB1234 is delayed by 5 minutes.", time: "9:02 AM", busNumber: "TN09 AB1234" },
 ];
 
 const history = [
@@ -76,8 +97,9 @@ const history = [
     id: 1,
     date: "25 June 2026",
     bus: "TN09 AB1234",
+    studentName: "Rahul Kumar",
     from: "Anna Nagar",
-    to: "Campus",
+    to: "CampusConnect",
     departure: "8:00 AM",
     arrival: "8:55 AM",
     status: "Completed",
@@ -86,17 +108,21 @@ const history = [
     id: 2,
     date: "24 June 2026",
     bus: "TN09 AB1234",
+    studentName: "Rahul Kumar",
     from: "Anna Nagar",
-    to: "Campus",
+    to: "CampusConnect",
     departure: "8:05 AM",
     arrival: "9:00 AM",
     status: "Completed",
   },
 ];
 
+const schoolLocation = [13.0893, 80.2785];
+
 let profile = {
   parent: "Mr. Kumar",
   student: "Rahul Kumar",
+  studentId: 1,
   class: "X-A",
   bus: "TN09 AB1234",
   phone: "+91 9876543210",
@@ -113,335 +139,152 @@ const nextId = (collection) => {
   return collection.length ? Math.max(...collection.map((item) => item.id)) + 1 : 1;
 };
 
-const getBusById = (id) => buses.find((bus) => bus.id === id);
+const getStudentById = (id) => students.find((student) => student.id === id);
+const getStudentByName = (name) => students.find((student) => student.name === name);
 const getDriverById = (id) => drivers.find((driver) => driver.id === id);
 const getRouteById = (id) => routes.find((route) => route.id === id);
+const getBusByNumber = (number) => buses.find((bus) => bus.number === number);
 
 const randomLocation = (location) => {
-  return [location[0] + (Math.random() - 0.5) * 0.0015, location[1] + (Math.random() - 0.5) * 0.0015];
+  return [location[0] + (Math.random() - 0.5) * 0.0012, location[1] + (Math.random() - 0.5) * 0.0012];
 };
 
-app.get("/", (req, res) => {
-  res.send("CampusConnect Backend Running 🚍");
-});
+const getParentContext = () => {
+  const student = profile.studentId ? getStudentById(profile.studentId) : getStudentByName(profile.student);
+  const bus = getBusByNumber(student?.bus || profile.bus);
+  const driver = bus ? getDriverById(bus.driverId) : null;
+  const route = bus ? getRouteById(bus.routeId) : null;
+  const stopCount = route?.stops?.length || 0;
+  const currentIndex = stopCount ? Math.min(stopCount - 1, Math.floor(Date.now() / 15000) % stopCount) : 0;
+  const nextIndex = route ? Math.min(stopCount - 1, currentIndex + 1) : 0;
 
-app.get("/students", (req, res) => {
-  res.json(students);
-});
-
-app.post("/students", (req, res) => {
-  const { name, class: studentClass, bus } = req.body;
-  if (!name || !studentClass || !bus) {
-    return res.status(400).json({ error: "Name, class and bus are required" });
-  }
-
-  const newStudent = {
-    id: nextId(students),
-    name,
-    class: studentClass,
+  return {
+    student,
     bus,
-    status: "Present",
+    driver,
+    route,
+    currentStopIndex: currentIndex,
+    nextStopIndex: nextIndex,
   };
+};
 
-  students.push(newStudent);
-  res.json(newStudent);
-});
+const childNotificationFilter = (student, bus) => {
+  return notifications.filter((item) => {
+    if (item.busNumber && bus && item.busNumber === bus.number) return true;
+    if (item.studentName && student && item.studentName === student.name) return true;
+    return false;
+  });
+};
 
-app.put("/students/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const student = students.find((item) => item.id === id);
-  if (!student) {
-    return res.status(404).json({ error: "Student not found" });
-  }
-  const { name, class: studentClass, bus, status } = req.body;
-  if (name !== undefined) student.name = name;
-  if (studentClass !== undefined) student.class = studentClass;
-  if (bus !== undefined) student.bus = bus;
-  if (status !== undefined) student.status = status;
-  res.json(student);
-});
+const childHistoryFilter = (student, bus) => {
+  return history.filter((item) => {
+    if (item.bus && bus && item.bus === bus.number) return true;
+    if (item.studentName && student && item.studentName === student.name) return true;
+    return false;
+  });
+};
 
-app.delete("/students/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const index = students.findIndex((item) => item.id === id);
-  if (index === -1) {
-    return res.status(404).json({ error: "Student not found" });
-  }
-  students.splice(index, 1);
-  res.json({ message: "Student deleted" });
-});
+const buildParentDashboard = () => {
+  const { student, bus, driver, route, currentStopIndex, nextStopIndex } = getParentContext();
+  const currentStop = route?.stops?.[currentStopIndex] || "Unknown";
+  const nextStop = route?.stops?.[nextStopIndex] || "Unknown";
+  const tripStatus = bus?.status === "On Route" ? "En Route" : bus?.status || "Pending";
+  const eta = route ? `${Math.max(5, 18 - currentStopIndex * 3)} min` : "TBD";
+  const trackLocation = bus?.location || schoolLocation;
 
-app.get("/drivers", (req, res) => {
-  res.json(drivers.map((driver) => ({
-    ...driver,
-    busNumber: getBusById(driver.assignedBusId)?.number || "Unassigned",
-  })));
-});
-
-app.post("/drivers", (req, res) => {
-  const { name, phone, assignedBusId } = req.body;
-  if (!name || !phone) {
-    return res.status(400).json({ error: "Name and phone are required" });
-  }
-  const newDriver = {
-    id: nextId(drivers),
-    name,
-    phone,
-    status: assignedBusId ? "Assigned" : "Available",
-    assignedBusId: assignedBusId || null,
+  return {
+    student: {
+      name: student?.name || profile.student,
+      class: student?.class || profile.class,
+      rollNumber: student?.rollNumber || "N/A",
+      assignedBusNumber: bus?.number || profile.bus,
+    },
+    driver: {
+      name: driver?.name || "Unassigned",
+      phone: driver?.phone || "N/A",
+    },
+    bus: {
+      number: bus?.number || "N/A",
+      status: bus?.status || "N/A",
+      speed: bus?.speed || "N/A",
+      eta,
+      currentStop,
+      nextStop,
+      routeName: route?.name || "Unassigned",
+      departureTime: route?.departureTime || "8:00 AM",
+      expectedArrival: route?.expectedArrival || "N/A",
+      tripStatus,
+      lastUpdated: new Date().toLocaleTimeString(),
+      location: trackLocation,
+      routePolyline: route?.stopLocations || [],
+      stopLocations: route?.stopLocations || [],
+      schoolLocation,
+    },
+    notifications: childNotificationFilter(student, bus).slice(-4).reverse(),
+    history: childHistoryFilter(student, bus).slice(-4).reverse(),
   };
-  drivers.push(newDriver);
-  res.json(newDriver);
-});
-
-app.put("/drivers/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const driver = drivers.find((item) => item.id === id);
-  if (!driver) {
-    return res.status(404).json({ error: "Driver not found" });
-  }
-  const { name, phone, status, assignedBusId } = req.body;
-  if (name !== undefined) driver.name = name;
-  if (phone !== undefined) driver.phone = phone;
-  if (status !== undefined) driver.status = status;
-  if (assignedBusId !== undefined) driver.assignedBusId = assignedBusId;
-  res.json(driver);
-});
-
-app.delete("/drivers/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const index = drivers.findIndex((item) => item.id === id);
-  if (index === -1) {
-    return res.status(404).json({ error: "Driver not found" });
-  }
-  drivers.splice(index, 1);
-  res.json({ message: "Driver removed" });
-});
-
-app.get("/buses", (req, res) => {
-  res.json(buses.map((bus) => ({
-    ...bus,
-    driverName: getDriverById(bus.driverId)?.name || "Unassigned",
-    routeName: getRouteById(bus.routeId)?.name || "Unassigned",
-  })));
-});
-
-app.post("/buses", (req, res) => {
-  const { number, capacity, driverId, routeId } = req.body;
-  if (!number || !capacity) {
-    return res.status(400).json({ error: "Bus number and capacity are required" });
-  }
-  const newBus = {
-    id: nextId(buses),
-    number,
-    capacity,
-    driverId: driverId || null,
-    routeId: routeId || null,
-    status: driverId ? "Assigned" : "Available",
-    location: [13.0827, 80.2707],
-    speed: "0 km/h",
-  };
-  buses.push(newBus);
-  res.json(newBus);
-});
-
-app.put("/buses/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const bus = getBusById(id);
-  if (!bus) {
-    return res.status(404).json({ error: "Bus not found" });
-  }
-  const { number, capacity, driverId, routeId, status, location } = req.body;
-  if (number !== undefined) bus.number = number;
-  if (capacity !== undefined) bus.capacity = capacity;
-  if (driverId !== undefined) bus.driverId = driverId;
-  if (routeId !== undefined) bus.routeId = routeId;
-  if (status !== undefined) bus.status = status;
-  if (location !== undefined) bus.location = location;
-  res.json(bus);
-});
-
-app.delete("/buses/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const index = buses.findIndex((item) => item.id === id);
-  if (index === -1) {
-    return res.status(404).json({ error: "Bus not found" });
-  }
-  buses.splice(index, 1);
-  res.json({ message: "Bus removed" });
-});
-
-app.get("/routes", (req, res) => {
-  res.json(routes.map((route) => ({
-    ...route,
-    assignedBusNumber: getBusById(route.assignedBusId)?.number || "Unassigned",
-  })));
-});
-
-app.post("/routes", (req, res) => {
-  const { name, stops, assignedBusId } = req.body;
-  if (!name || !Array.isArray(stops)) {
-    return res.status(400).json({ error: "Route name and stops are required" });
-  }
-  const newRoute = {
-    id: nextId(routes),
-    name,
-    stops,
-    assignedBusId: assignedBusId || null,
-  };
-  routes.push(newRoute);
-  res.json(newRoute);
-});
-
-app.put("/routes/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const route = getRouteById(id);
-  if (!route) {
-    return res.status(404).json({ error: "Route not found" });
-  }
-  const { assignedBusId, stops, name } = req.body;
-  if (assignedBusId !== undefined) route.assignedBusId = assignedBusId;
-  if (stops !== undefined) route.stops = stops;
-  if (name !== undefined) route.name = name;
-  res.json(route);
-});
+};
 
 app.get("/dashboard/parent", (req, res) => {
-  const activeBus = buses.find((bus) => bus.status === "On Route") || buses[0];
-  res.json({
-    activeBuses: buses.filter((bus) => bus.status === "On Route").length,
-    drivers: drivers.length,
-    students: students.length,
-    currentBus: {
-      busNumber: activeBus.number,
-      status: activeBus.status,
-      driver: getDriverById(activeBus.driverId)?.name || "Unassigned",
-      eta: "12 min",
-      speed: activeBus.speed,
-      location: activeBus.location,
-      route: getRouteById(activeBus.routeId)?.name || "Unassigned",
-    },
-  });
+  res.json(buildParentDashboard());
 });
 
-app.get("/dashboard/admin", (req, res) => {
+app.get("/profile", (req, res) => {
+  const student = profile.studentId ? getStudentById(profile.studentId) : getStudentByName(profile.student);
   res.json({
-    totalStudents: students.length,
-    totalDrivers: drivers.length,
-    totalBuses: buses.length,
-    activeRoutes: routes.length,
-    recentNotifications: notifications.slice(-4).reverse(),
-  });
-});
-
-app.get("/dashboard/driver", (req, res) => {
-  const driverId = Number(req.query.driverId) || 1;
-  const driver = getDriverById(driverId) || drivers[0];
-  const bus = getBusById(driver.assignedBusId);
-  const route = bus ? getRouteById(bus.routeId) : null;
-
-  res.json({
-    driver,
-    bus: bus
-      ? {
-          id: bus.id,
-          number: bus.number,
-          status: bus.status,
-          speed: bus.speed,
-          routeId: bus.routeId,
-          routeName: route?.name || "Unassigned",
-          location: bus.location,
-        }
-      : null,
-    route,
-    nextStop: route?.stops[1] || "N/A",
-    currentStop: route?.stops[0] || "N/A",
+    ...profile,
+    rollNumber: student?.rollNumber || "N/A",
+    student: student?.name || profile.student,
+    class: student?.class || profile.class,
+    bus: student?.bus || profile.bus,
   });
 });
 
 app.get("/trackbus", (req, res) => {
-  const trackBus = buses.find((bus) => bus.status === "On Route") || buses[0];
-  trackBus.location = randomLocation(trackBus.location);
-  const route = getRouteById(trackBus.routeId);
-  const nextStopIndex = route ? Math.min(route.stops.length - 1, Math.floor(Date.now() / 10000) % route.stops.length) : 0;
-  const currentStop = route?.stops[nextStopIndex] || "Unknown";
-  const busDriver = getDriverById(trackBus.driverId);
+  const { bus } = getParentContext();
+  if (!bus) {
+    return res.status(404).json({ error: "Parent bus not found" });
+  }
+  bus.location = randomLocation(bus.location);
+  const route = getRouteById(bus.routeId);
+  const stopCount = route?.stops?.length || 0;
+  const currentIndex = stopCount ? Math.min(stopCount - 1, Math.floor(Date.now() / 15000) % stopCount) : 0;
+  const nextIndex = route ? Math.min(stopCount - 1, currentIndex + 1) : 0;
+  const currentStop = route?.stops?.[currentIndex] || "Unknown";
+  const nextStop = route?.stops?.[nextIndex] || "Unknown";
+  const driver = getDriverById(bus.driverId);
+
   res.json({
+    busNumber: bus.number,
+    status: bus.status,
+    speed: bus.speed,
+    driver: driver?.name || "Unknown",
+    eta: route ? `${Math.max(5, 18 - currentIndex * 3)} min` : "TBD",
     currentStop,
-    eta: "12 min",
-    speed: trackBus.speed,
-    status: trackBus.status,
-    driver: busDriver?.name || "Unknown",
-    busNumber: trackBus.number,
+    nextStop,
+    location: bus.location,
+    routeName: route?.name || "Unassigned",
+    stopLocations: route?.stopLocations || [],
+    schoolLocation,
     lastUpdated: new Date().toLocaleTimeString(),
-    location: trackBus.location,
+    popup: {
+      busNumber: bus.number,
+      driver: driver?.name || "Unknown",
+      speed: bus.speed,
+      eta: route ? `${Math.max(5, 18 - currentIndex * 3)} min` : "TBD",
+      status: bus.status,
+    },
   });
 });
 
 app.get("/notifications", (req, res) => {
-  res.json(notifications.slice().reverse());
-});
-
-app.post("/notifications", (req, res) => {
-  const { title, message } = req.body;
-  if (!title || !message) {
-    return res.status(400).json({ error: "Title and message are required" });
-  }
-  const newNotification = {
-    id: nextId(notifications),
-    title,
-    message,
-    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-  };
-  notifications.push(newNotification);
-  res.json(newNotification);
+  const { student, bus } = getParentContext();
+  res.json(childNotificationFilter(student, bus).slice().reverse());
 });
 
 app.get("/history", (req, res) => {
-  res.json(history.slice().reverse());
-});
-
-app.post("/history", (req, res) => {
-  const { date, bus, from, to, departure, arrival, status } = req.body;
-  if (!date || !bus || !from || !to) {
-    return res.status(400).json({ error: "History record requires date, bus, from, and to" });
-  }
-  const newEvent = { id: nextId(history), date, bus, from, to, departure, arrival, status: status || "Completed" };
-  history.push(newEvent);
-  res.json(newEvent);
-});
-
-app.get("/emergency", (req, res) => {
-  const bus = buses.find((item) => item.status === "On Route") || buses[0];
-  const driver = getDriverById(bus.driverId);
-  res.json({
-    driver: {
-      name: driver?.name || "Ramesh Kumar",
-      phone: driver?.phone || "+91 9876543210",
-    },
-    office: {
-      phone: "+91 9123456789",
-    },
-    emergency: {
-      police: "100",
-      ambulance: "108",
-    },
-  });
-});
-
-app.get("/profile", (req, res) => {
-  res.json(profile);
-});
-
-app.put("/profile", (req, res) => {
-  const { parent, student, class: className, bus: busNumber, phone, email } = req.body;
-  if (parent !== undefined) profile.parent = parent;
-  if (student !== undefined) profile.student = student;
-  if (className !== undefined) profile.class = className;
-  if (busNumber !== undefined) profile.bus = busNumber;
-  if (phone !== undefined) profile.phone = phone;
-  if (email !== undefined) profile.email = email;
-  res.json(profile);
+  const { student, bus } = getParentContext();
+  res.json(childHistoryFilter(student, bus).slice().reverse());
 });
 
 app.get("/settings", (req, res) => {
