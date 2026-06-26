@@ -1,107 +1,78 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 
 function BusHistory() {
-  const trips = [
-    {
-      date: "25 June 2026",
-      bus: "TN09 AB1234",
-      start: "Anna Nagar",
-      end: "Campus",
-      departure: "8:00 AM",
-      arrival: "8:55 AM",
-      status: "Completed",
-    },
-    {
-      date: "24 June 2026",
-      bus: "TN09 AB1234",
-      start: "Anna Nagar",
-      end: "Campus",
-      departure: "8:05 AM",
-      arrival: "9:00 AM",
-      status: "Completed",
-    },
-    {
-      date: "23 June 2026",
-      bus: "TN09 AB1234",
-      start: "Anna Nagar",
-      end: "Campus",
-      departure: "8:10 AM",
-      arrival: "9:05 AM",
-      status: "Completed",
-    },
-  ];
+  const [trips, setTrips] = useState([]);
+
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/history")
+      .then((res) => setTrips(res.data))
+      .catch((err) => console.error(err));
+  }, []);
 
   return (
     <>
       <Navbar />
-
       <div style={{ display: "flex" }}>
         <Sidebar />
-
-        <div
-          style={{
-            flex: 1,
-            background: "#15161d",
-            color: "white",
-            minHeight: "100vh",
-            padding: "30px",
-          }}
-        >
+        <div style={{ flex: 1, background: "#090b14", minHeight: "100vh", color: "white", padding: "30px" }}>
           <h1>📜 Bus History</h1>
-
-          <table
-            style={{
-              width: "100%",
-              marginTop: "30px",
-              borderCollapse: "collapse",
-              background: "#10233f",
-              borderRadius: "10px",
-              overflow: "hidden",
-            }}
-          >
-            <thead>
-              <tr>
-                <th style={th}>Date</th>
-                <th style={th}>Bus</th>
-                <th style={th}>From</th>
-                <th style={th}>To</th>
-                <th style={th}>Departure</th>
-                <th style={th}>Arrival</th>
-                <th style={th}>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {trips.map((trip, index) => (
-                <tr key={index}>
-                  <td style={td}>{trip.date}</td>
-                  <td style={td}>{trip.bus}</td>
-                  <td style={td}>{trip.start}</td>
-                  <td style={td}>{trip.end}</td>
-                  <td style={td}>{trip.departure}</td>
-                  <td style={td}>{trip.arrival}</td>
-                  <td style={td}>{trip.status}</td>
+          <div style={{ marginTop: "24px", overflowX: "auto" }}>
+            <table style={historyTable}>
+              <thead>
+                <tr>
+                  <th style={headerStyle}>Date</th>
+                  <th style={headerStyle}>Bus</th>
+                  <th style={headerStyle}>From</th>
+                  <th style={headerStyle}>To</th>
+                  <th style={headerStyle}>Departure</th>
+                  <th style={headerStyle}>Arrival</th>
+                  <th style={headerStyle}>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {trips.map((trip) => (
+                  <tr key={trip.id}>
+                    <td style={bodyStyle}>{trip.date}</td>
+                    <td style={bodyStyle}>{trip.bus}</td>
+                    <td style={bodyStyle}>{trip.from}</td>
+                    <td style={bodyStyle}>{trip.to}</td>
+                    <td style={bodyStyle}>{trip.departure}</td>
+                    <td style={bodyStyle}>{trip.arrival}</td>
+                    <td style={bodyStyle}>{trip.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </>
   );
 }
 
-const th = {
-  padding: "15px",
-  background: "#0b1d35",
-  color: "white",
+const historyTable = {
+  width: "100%",
+  borderCollapse: "collapse",
+  background: "#10233f",
+  borderRadius: "18px",
+  overflow: "hidden",
 };
 
-const td = {
-  padding: "15px",
-  borderTop: "1px solid #29466e",
-  textAlign: "center",
+const headerStyle = {
+  padding: "16px",
+  color: "#94a3b8",
+  textAlign: "left",
+  background: "#0b1d35",
+};
+
+const bodyStyle = {
+  padding: "16px",
+  borderTop: "1px solid #1f2a44",
+  color: "white",
 };
 
 export default BusHistory;

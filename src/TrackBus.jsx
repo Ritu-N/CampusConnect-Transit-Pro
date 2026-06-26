@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
@@ -29,17 +30,39 @@ function TrackBus() {
     "Reached",
   ];
 
-  const [index, setIndex] = useState(0);
+  const [bus, setBus] = useState(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % route.length);
-    }, 2000);
+  const loadBus = () => {
+    axios
+      .get("http://localhost:5000/trackbus")
+      .then((res) => setBus(res.data))
+      .catch((err) => console.log(err));
+  };
 
-    return () => clearInterval(timer);
-  }, []);
+  loadBus();
 
-  const busLocation = route[index];
+  const timer = setInterval(loadBus, 3000);
+
+  return () => clearInterval(timer);
+}, []);
+if (!bus) {
+  return (
+    <>
+      <Navbar />
+      <h2
+        style={{
+          color: "white",
+          textAlign: "center",
+          marginTop: "80px",
+        }}
+      >
+        Loading Bus...
+      </h2>
+    </>
+  );
+}
+  const busLocation = bus.location;
 
   const cardStyle = {
     backgroundColor: "#10233f",
@@ -78,22 +101,22 @@ function TrackBus() {
           >
             <div style={cardStyle}>
               <h3>📍 Current Stop</h3>
-              <h2>{stops[index]}</h2>
+              <h2>{bus.currentStop}</h2>
             </div>
 
             <div style={cardStyle}>
               <h3>⏱ ETA</h3>
-              <h2>15 min</h2>
+             <h2>{bus.eta}</h2>
             </div>
 
             <div style={cardStyle}>
               <h3>⚡ Speed</h3>
-              <h2>42 km/h</h2>
+              <h2>{bus.speed}</h2>
             </div>
 
             <div style={cardStyle}>
               <h3>🟢 Status</h3>
-              <h2>{status[index]}</h2>
+             <h2>{bus.status}</h2>
             </div>
           </div>
 
@@ -139,17 +162,17 @@ function TrackBus() {
           >
             <div style={cardStyle}>
               <h3>🚌 Bus Number</h3>
-              <h2>TN09 AB1234</h2>
+             <h2>{bus.busNumber}</h2>
             </div>
 
             <div style={cardStyle}>
               <h3>👨 Driver</h3>
-              <h2>Ramesh Kumar</h2>
+              <h2>{bus.driver}</h2>
             </div>
 
             <div style={cardStyle}>
               <h3>🔄 Last Updated</h3>
-              <h2>{new Date().toLocaleTimeString()}</h2>
+              <h2>{bus.lastUpdated}</h2>
             </div>
           </div>
         </div>
