@@ -144,6 +144,7 @@ const getStudentByName = (name) => students.find((student) => student.name === n
 const getDriverById = (id) => drivers.find((driver) => driver.id === id);
 const getRouteById = (id) => routes.find((route) => route.id === id);
 const getBusByNumber = (number) => buses.find((bus) => bus.number === number);
+const getBusById = (id) => buses.find((bus) => bus.id === Number(id));
 
 const randomLocation = (location) => {
   return [location[0] + (Math.random() - 0.5) * 0.0012, location[1] + (Math.random() - 0.5) * 0.0012];
@@ -192,6 +193,11 @@ const buildParentDashboard = () => {
   const eta = route ? `${Math.max(5, 18 - currentStopIndex * 3)} min` : "TBD";
   const trackLocation = bus?.location || schoolLocation;
 
+  const filteredNotifications = childNotificationFilter(student, bus)
+    .slice(-4)
+    .reverse()
+    .map(({ id, title, message, time }) => ({ id, title, message, time }));
+
   return {
     student: {
       name: student?.name || profile.student,
@@ -206,27 +212,103 @@ const buildParentDashboard = () => {
     bus: {
       number: bus?.number || "N/A",
       status: bus?.status || "N/A",
-      speed: bus?.speed || "N/A",
-      eta,
+      location: trackLocation,
+      routeName: route?.name || "Unassigned",
       currentStop,
       nextStop,
-      routeName: route?.name || "Unassigned",
       departureTime: route?.departureTime || "8:00 AM",
       expectedArrival: route?.expectedArrival || "N/A",
       tripStatus,
-      lastUpdated: new Date().toLocaleTimeString(),
-      location: trackLocation,
-      routePolyline: route?.stopLocations || [],
-      stopLocations: route?.stopLocations || [],
+      eta,
+      speed: bus?.speed || "N/A",
       schoolLocation,
+      stopLocations: route?.stopLocations || [],
+      routePolyline: route?.stopLocations || [],
     },
-    notifications: childNotificationFilter(student, bus).slice(-4).reverse(),
-    history: childHistoryFilter(student, bus).slice(-4).reverse(),
+    notifications: filteredNotifications,
   };
 };
 
 app.get("/dashboard/parent", (req, res) => {
   res.json(buildParentDashboard());
+});
+
+app.get("/drivers", (req, res) => {
+  res.json(
+    drivers.map((driver) => ({
+      ...driver,
+      busNumber: getBusById(driver.assignedBusId)?.number || "Unassigned",
+    }))
+  );
+});
+
+app.get("/buses", (req, res) => {
+  res.json(
+    buses.map((bus) => ({
+      ...bus,
+      driverName: getDriverById(bus.driverId)?.name || "Unassigned",
+      routeName: getRouteById(bus.routeId)?.name || "Unassigned",
+    }))
+  );
+});
+
+app.get("/routes", (req, res) => {
+  res.json(
+    routes.map((route) => ({
+      id: route.id,
+      name: route.name,
+      stops: route.stops,
+      assignedBusId: route.assignedBusId,
+      departureTime: route.departureTime,
+      expectedArrival: route.expectedArrival,
+    }))
+  );
+});
+
+app.get("/dashboard/driver", (req, res) => {
+  const driverId = Number(req.query.driverId || 1);
+  const driver = getDriverById(driverId);
+  if (!driver) return res.status(404).json({ error: "Driver not found" });
+
+  const bus = buses.find((busItem) => busItem.driverId === driverId) || null;
+  const route = bus ? getRouteById(bus.routeId) : null;
+  const stopCount = route?.stops?.length || 0;
+  const currentIndex = stopCount ? Math.min(stopCount - 1, Math.floor(Date.now() / 15000) % stopCount) : 0;
+  const nextIndex = route ? Math.min(stopCount - 1, currentIndex + 1) : 0;
+
+  res.json({
+    driver: {
+      id: driver.id,
+      name: driver.name,
+      phone: driver.phone,
+      status: driver.status,
+    },
+    bus: bus
+      ? {
+          id: bus.id,
+          number: bus.number,
+          status: bus.status,
+          routeName: route?.name || "Unassigned",
+          driverId: bus.driverId,
+        }
+      : null,
+    route,
+    currentStop: route?.stops?.[currentIndex] || "Unknown",
+    nextStop: route?.stops?.[nextIndex] || "Unknown",
+    currentStopIndex: currentIndex,
+    nextStopIndex: nextIndex,
+  });
+});
+
+app.get("/dashboard/admin", (req, res) => {
+  res.json({
+    totalStudents: students.length,
+    totalDrivers: drivers.length,
+    totalBuses: buses.length,
+    activeRoutes: routes.length,
+    activeDrivers: drivers.filter((d) => d.status === "On Route").length,
+    idleBuses: buses.filter((b) => b.status !== "On Route").length,
+  });
 });
 
 app.get("/profile", (req, res) => {
